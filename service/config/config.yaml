@@ -1,0 +1,14 @@
+grpc:
+  port: 9090
+
+postgresql:
+  user: "user"
+  password: "password"
+  host: "app-postgres"
+  port: 5432
+  db: "posts_ozon"
+  sslmode: "disable"
+
+jwt:
+  secret_key: "posts_ozon"
+  ttl: 10m

@@ -1,0 +1,68 @@
+version: "3.8"
+
+networks:
+  app_net:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: app-postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: posts_ozon
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d posts_ozon"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - app_net
+
+  go-service:
+    container_name: service
+    build:
+      context: .
+      dockerfile: ./service/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://user:password@postgres:5432/posts_ozon?sslmode=disable
+      GRPC_PORT: "9090"
+    volumes:
+      - ./service/config/config.yaml:/config/config.yaml:ro
+    ports:
+      - "9090:9090"
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  graphql:
+    container_name: graphql
+    build:
+      context: .
+      dockerfile: ./graphql/Dockerfile
+    depends_on:
+      go-service:
+        condition: service_started
+    environment:
+      HTTP_PORT: "8080"
+      GRPC_TARGET: service:9090
+      GRPC_INSECURE: "true"
+      CONFIG_PATH: /config/config.yaml
+    volumes:
+      - ./graphql/config/config.yaml:/config/config.yaml:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - app_net
+
+volumes:
+  postgres_data:

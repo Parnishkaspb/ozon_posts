@@ -1,0 +1,3 @@
+jwt:
+  secret_key: "posts_ozon"
+  ttl: 10m
