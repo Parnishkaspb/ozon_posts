@@ -8,14 +8,28 @@ package graph
 import (
 	"context"
 	"fmt"
-	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
+	"github.com/Parnishkaspb/ozon_posts_graphql/internal/helper"
 	"time"
 
+	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
+	helpergraph "github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/helper"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
+	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 )
+
+// Author is the resolver for the author field.
+func (r *commentResolver) Author(ctx context.Context, obj *model.Comment) (*model.User, error) {
+	return helpergraph.ResolveAuthor(ctx, obj.AuthorID)
+}
 
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, postID string, parentID *string, text string) (*model.Comment, error) {
+	u, ok := helper.FromContext(ctx)
+
+	if !ok {
+		return nil, fmt.Errorf("unauthorized")
+	}
+
 	var parentIDstring string
 	if parentID != nil {
 		parentIDstring = *parentID
@@ -23,7 +37,7 @@ func (r *mutationResolver) CreateComment(ctx context.Context, postID string, par
 
 	resp, err := r.CommentSvc.CreateComment(ctx, &servicepb.CreateCommentRequest{
 		PostId:   postID,
-		AuthorId: "",
+		AuthorId: u.ID.String(),
 		ParentId: parentIDstring,
 		Text:     text,
 	})
@@ -54,5 +68,11 @@ func (r *mutationResolver) CreateComment(ctx context.Context, postID string, par
 		ParentID:  pID,
 		Text:      c.GetText(),
 		CreatedAt: createdAt,
+		AuthorID:  c.GetAuthorId(),
 	}, nil
 }
+
+// Comment returns generated.CommentResolver implementation.
+func (r *Resolver) Comment() generated.CommentResolver { return &commentResolver{r} }
+
+type commentResolver struct{ *Resolver }

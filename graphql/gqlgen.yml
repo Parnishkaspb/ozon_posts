@@ -19,3 +19,7 @@ models:
     fields:
       author:
         resolver: true
+  Comment:
+    fields:
+      author:
+        resolver: true

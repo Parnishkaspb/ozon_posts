@@ -11,12 +11,11 @@ import (
 	"log"
 	"time"
 
-	graphdataloader "github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/dataloader"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
+	helpergraph "github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/helper"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/helper"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
-	"github.com/graph-gophers/dataloader"
 )
 
 // CreatePost is the resolver for the createPost field.
@@ -57,26 +56,7 @@ func (r *mutationResolver) CreatePost(ctx context.Context, text string, withoutC
 
 // Author is the resolver for the author field.
 func (r *postResolver) Author(ctx context.Context, obj *model.Post) (*model.User, error) {
-	lds, ok := graphdataloader.FromContext(ctx)
-	if !ok || lds.UserByID == nil {
-		return nil, graphdataloader.ErrNotInjected
-	}
-
-	thunk := lds.UserByID.Load(ctx, dataloader.StringKey(obj.AuthorID))
-	data, err := thunk()
-	if err != nil {
-		return nil, err
-	}
-	if data == nil {
-		return nil, fmt.Errorf("author not found")
-	}
-
-	u := data.(*servicepb.User)
-	return &model.User{
-		ID:      u.GetId(),
-		Name:    u.GetName(),
-		Surname: u.GetSurname(),
-	}, nil
+	return helpergraph.ResolveAuthor(ctx, obj.AuthorID)
 }
 
 // Posts is the resolver for the posts field.

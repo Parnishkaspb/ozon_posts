@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/Parnishkaspb/ozon_posts/internal/app"
 	"github.com/Parnishkaspb/ozon_posts/internal/auth"
+	"github.com/Parnishkaspb/ozon_posts/internal/services/comments"
 	"github.com/Parnishkaspb/ozon_posts/internal/services/posts"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 	"github.com/google/uuid"
@@ -120,4 +121,43 @@ func (h *Handler) GetUsers(ctx context.Context, req *servicepb.GetUsersRequest) 
 	}
 
 	return &servicepb.GetUsersResponse{Users: result}, nil
+}
+
+func (h *Handler) CreateComment(ctx context.Context, req *servicepb.CreateCommentRequest) (*servicepb.CreateCommentResponse, error) {
+	uuidPostId, err := uuid.Parse(req.GetPostId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "post_id must be a valid UUID")
+	}
+
+	err = h.app.PostSRV.CanWriteComment(ctx, uuidPostId)
+	if err != nil {
+		return nil, status.Error(codes.PermissionDenied, "permission denied")
+	}
+
+	uuidAuthorId, err := uuid.Parse(req.GetAuthorId())
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, "author_id must be a valid UUID")
+	}
+	comment, err := h.app.CommentSRV.CommentCreate(ctx, req.GetText(), uuidAuthorId, uuidPostId)
+	if err != nil {
+		if errors.Is(err, comments.ErrCantWriteComment) {
+			return nil, status.Error(codes.InvalidArgument, comments.ErrCantWriteComment.Error())
+		}
+
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	parentID := ""
+	if comment.ParentCommentID != nil {
+		parentID = comment.ParentCommentID.String()
+	}
+
+	return &servicepb.CreateCommentResponse{Comment: &servicepb.Comment{
+		Id:        comment.ID.String(),
+		PostId:    comment.PostID.String(),
+		AuthorId:  comment.AuthorID.String(),
+		ParentId:  parentID,
+		Text:      comment.Text,
+		CreatedAt: timestamppb.New(comment.CreatedAt),
+	}}, nil
 }

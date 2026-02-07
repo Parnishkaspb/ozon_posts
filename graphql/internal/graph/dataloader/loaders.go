@@ -14,12 +14,12 @@ var ErrNotInjected = errors.New("dataloader not injected")
 type key struct{}
 
 type Loaders struct {
-	UserByID *dataloader.Loader
+	UsersByIDs *dataloader.Loader
 }
 
 func New(userSvc servicepb.UserServiceClient) *Loaders {
 	return &Loaders{
-		UserByID: dataloader.NewBatchedLoader(
+		UsersByIDs: dataloader.NewBatchedLoader(
 			batchUsers(userSvc),
 			dataloader.WithWait(2*time.Millisecond),
 			dataloader.WithBatchCapacity(200),

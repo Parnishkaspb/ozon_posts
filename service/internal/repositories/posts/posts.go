@@ -2,6 +2,7 @@ package posts
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/Parnishkaspb/ozon_posts/internal/models"
 	"github.com/google/uuid"
@@ -121,6 +122,10 @@ func (r *Repo) WithoutComment(ctx context.Context, postID uuid.UUID) (bool, erro
 	const query = `SELECT without_comment FROM posts WHERE id = $1`
 	var withoutComment bool
 	err := r.pool.QueryRow(ctx, query, postID).Scan(&withoutComment)
+
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, pgx.ErrNoRows
+	}
 
 	return withoutComment, err
 }

@@ -12,5 +12,6 @@ type Comment {
   parentId: ID
   text: String!
   createdAt: String!
+  authorId: ID!
   author: User!
 }

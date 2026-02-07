@@ -3,7 +3,7 @@ package comments
 import (
 	"context"
 	"errors"
-	"github.com/Parnishkaspb/ozon_posts/internal/services/posts"
+	"github.com/Parnishkaspb/ozon_posts/internal/models"
 	"strings"
 
 	"github.com/google/uuid"
@@ -17,7 +17,7 @@ var (
 )
 
 type CommentRepo interface {
-	CreateComment(ctx context.Context, text string, authorID, postID uuid.UUID) error
+	CreateComment(ctx context.Context, text string, authorID, postID uuid.UUID) (*models.Comment, error)
 	AnswerComment(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) error
 }
 
@@ -40,7 +40,7 @@ func New(comment CommentRepo, post PostRepo) *CommentService {
 func (s *CommentService) normalizeAndValidateText(text string) (string, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
-		return "", posts.ErrTextRequired
+		return "", errors.New("text is required")
 	}
 	if len([]rune(text)) > 2000 {
 		return "", ErrMax2000Symbols
@@ -55,25 +55,25 @@ func (s *CommentService) requireUUID(id uuid.UUID, err error) error {
 	return nil
 }
 
-func (s *CommentService) CommentCreate(ctx context.Context, text string, authorID, postID uuid.UUID) error {
+func (s *CommentService) CommentCreate(ctx context.Context, text string, authorID, postID uuid.UUID) (*models.Comment, error) {
 	text, err := s.normalizeAndValidateText(text)
 	if err != nil {
-		return err
+		return &models.Comment{}, err
 	}
-	if err := s.requireUUID(authorID, posts.ErrAuthorIDRequired); err != nil {
-		return err
+	if err := s.requireUUID(authorID, errors.New("authorID is required")); err != nil {
+		return &models.Comment{}, err
 	}
 	if err := s.requireUUID(postID, ErrPostIDRequired); err != nil {
-		return err
+		return &models.Comment{}, err
 	}
 
 	ok, err := s.postRepo.WithoutComment(ctx, postID)
 	if err != nil {
-		return err
+		return &models.Comment{}, err
 	}
 
 	if !ok {
-		return ErrCantWriteComment
+		return &models.Comment{}, ErrCantWriteComment
 	}
 
 	return s.commentRepo.CreateComment(ctx, text, authorID, postID)
@@ -84,7 +84,7 @@ func (s *CommentService) CommentAnswer(ctx context.Context, text string, authorI
 	if err != nil {
 		return err
 	}
-	if err := s.requireUUID(authorID, posts.ErrAuthorIDRequired); err != nil {
+	if err := s.requireUUID(authorID, errors.New("authorID is required")); err != nil {
 		return err
 	}
 	if err := s.requireUUID(postID, ErrPostIDRequired); err != nil {

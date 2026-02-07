@@ -3,6 +3,7 @@ package comments
 import (
 	"context"
 	"errors"
+	"github.com/Parnishkaspb/ozon_posts/internal/models"
 	"github.com/Parnishkaspb/ozon_posts/internal/services/posts"
 	"testing"
 
@@ -18,9 +19,9 @@ func (m *mockCommentRepo) AnswerComment(ctx context.Context, text string, author
 	return nil
 }
 
-func (m *mockCommentRepo) CreateComment(ctx context.Context, text string, authorID, postID uuid.UUID) error {
+func (m *mockCommentRepo) CreateComment(ctx context.Context, text string, authorID, postID uuid.UUID) (*models.Comment, error) {
 	m.called = true
-	return nil
+	return &models.Comment{}, nil
 }
 
 type mockPostRepo struct {
@@ -58,7 +59,7 @@ func TestCommentService_CommentCreate(t *testing.T) {
 			text:     "   ",
 			authorID: validAuthor,
 			postID:   validPost,
-			wantErr:  posts.ErrTextRequired,
+			wantErr:  errors.New("text is required"),
 		},
 		{
 			name:     "text too long",
@@ -112,7 +113,7 @@ func TestCommentService_CommentCreate(t *testing.T) {
 				postRepo:    postRepo,
 			}
 
-			err := svc.CommentCreate(ctx, tt.text, tt.authorID, tt.postID)
+			_, err := svc.CommentCreate(ctx, tt.text, tt.authorID, tt.postID)
 
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("expected error %v, got %v", tt.wantErr, err)

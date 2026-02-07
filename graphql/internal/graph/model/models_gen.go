@@ -12,6 +12,7 @@ type Comment struct {
 	ParentID  *string `json:"parentId,omitempty"`
 	Text      string  `json:"text"`
 	CreatedAt string  `json:"createdAt"`
+	AuthorID  string  `json:"authorId"`
 	Author    *User   `json:"author"`
 }
 

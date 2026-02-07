@@ -19,6 +19,7 @@ type PostRepo interface {
 	CreatePost(ctx context.Context, ownerID uuid.UUID, text string, withoutComment bool) (*models.Post, error)
 	GetAllPosts(ctx context.Context) ([]*models.Post, error)
 	GetPostsByID(ctx context.Context, id string) (*models.Post, error)
+	WithoutComment(ctx context.Context, postID uuid.UUID) (bool, error)
 }
 
 type PostService struct {
@@ -58,4 +59,17 @@ func (s *PostService) GetAllPosts(ctx context.Context, id []string) ([]*models.P
 	}
 
 	return s.repo.GetAllPosts(ctx)
+}
+
+func (s *PostService) CanWriteComment(ctx context.Context, id uuid.UUID) error {
+	ok, err := s.repo.WithoutComment(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	if !ok {
+		return errors.New("can't write a comment to this post")
+	}
+
+	return nil
 }
