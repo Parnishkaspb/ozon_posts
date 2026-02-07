@@ -14,7 +14,7 @@ import (
 
 // Login is the resolver for the login field.
 func (r *mutationResolver) Login(ctx context.Context, login string, password string) (*model.AuthPayload, error) {
-	answer, err := r.Auth.Login(ctx, &servicepb.LoginRequest{
+	answer, err := r.AuthSvc.Login(ctx, &servicepb.LoginRequest{
 		Login:    login,
 		Password: password,
 	})

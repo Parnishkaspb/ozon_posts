@@ -103,3 +103,21 @@ func (h *Handler) GetPosts(ctx context.Context, req *servicepb.GetPostsRequest) 
 
 	return &servicepb.GetPostsResponse{Posts: result}, nil
 }
+
+func (h *Handler) GetUsers(ctx context.Context, req *servicepb.GetUsersRequest) (*servicepb.GetUsersResponse, error) {
+	users, err := h.app.UserSRV.GetUsersByIds(ctx, req.GetIds())
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+
+	result := make([]*servicepb.User, 0, len(users))
+	for _, user := range users {
+		result = append(result, &servicepb.User{
+			Id:      user.ID.String(),
+			Name:    user.Name,
+			Surname: user.Surname,
+		})
+	}
+
+	return &servicepb.GetUsersResponse{Users: result}, nil
+}

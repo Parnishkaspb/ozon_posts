@@ -6,6 +6,15 @@ type AuthPayload struct {
 	Token string `json:"token"`
 }
 
+type Comment struct {
+	ID        string  `json:"id"`
+	PostID    string  `json:"postId"`
+	ParentID  *string `json:"parentId,omitempty"`
+	Text      string  `json:"text"`
+	CreatedAt string  `json:"createdAt"`
+	Author    *User   `json:"author"`
+}
+
 type Mutation struct {
 }
 
@@ -16,7 +25,7 @@ type Post struct {
 	CreatedAt      string `json:"createdAt"`
 	UpdatedAt      string `json:"updatedAt"`
 	AuthorID       string `json:"authorId"`
-	Author         *User  `json:"Author"`
+	Author         *User  `json:"author"`
 }
 
 type Query struct {

@@ -8,7 +8,8 @@ import servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 // here.
 
 type Resolver struct {
-	Auth servicepb.AuthServiceClient
-	User servicepb.UserServiceClient
-	Post servicepb.PostServiceClient
+	AuthSvc    servicepb.AuthServiceClient
+	UserSvc    servicepb.UserServiceClient
+	PostSvc    servicepb.PostServiceClient
+	CommentSvc servicepb.CommentServiceClient
 }

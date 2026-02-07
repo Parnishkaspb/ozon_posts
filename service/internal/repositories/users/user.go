@@ -56,6 +56,24 @@ func (r *Repo) GetUserByID(ctx context.Context, userID uuid.UUID) (*models.User,
 	return u, nil
 }
 
+func (r *Repo) GetUsersByIDs(ctx context.Context, ids []string) ([]*models.User, error) {
+	const query = `SELECT id, name, surname FROM users WHERE id = ANY($1)`
+	rows, err := r.pool.Query(ctx, query, ids)
+
+	if err != nil {
+		return nil, fmt.Errorf("Query: %w", err)
+	}
+	defer rows.Close()
+
+	users, err := r.collectRows(rows)
+
+	if err != nil {
+		return nil, fmt.Errorf("CollectRows: %w", err)
+	}
+
+	return users, nil
+}
+
 func (r *Repo) collectRows(rows pgx.Rows) ([]*models.User, error) {
 	users, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (*models.User, error) {
 		p := new(models.User)

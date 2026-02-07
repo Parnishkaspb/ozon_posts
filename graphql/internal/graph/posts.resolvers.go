@@ -11,10 +11,12 @@ import (
 	"log"
 	"time"
 
+	graphdataloader "github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/dataloader"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/helper"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
+	"github.com/graph-gophers/dataloader"
 )
 
 // CreatePost is the resolver for the createPost field.
@@ -30,7 +32,7 @@ func (r *mutationResolver) CreatePost(ctx context.Context, text string, withoutC
 		wc = *withoutComment
 	}
 
-	resp, err := r.Post.CreatePost(ctx, &servicepb.CreatePostRequest{
+	resp, err := r.PostSvc.CreatePost(ctx, &servicepb.CreatePostRequest{
 		AuthorId:       u.ID.String(),
 		Text:           text,
 		WithoutComment: wc,
@@ -53,9 +55,33 @@ func (r *mutationResolver) CreatePost(ctx context.Context, text string, withoutC
 	}, nil
 }
 
+// Author is the resolver for the author field.
+func (r *postResolver) Author(ctx context.Context, obj *model.Post) (*model.User, error) {
+	lds, ok := graphdataloader.FromContext(ctx)
+	if !ok || lds.UserByID == nil {
+		return nil, graphdataloader.ErrNotInjected
+	}
+
+	thunk := lds.UserByID.Load(ctx, dataloader.StringKey(obj.AuthorID))
+	data, err := thunk()
+	if err != nil {
+		return nil, err
+	}
+	if data == nil {
+		return nil, fmt.Errorf("author not found")
+	}
+
+	u := data.(*servicepb.User)
+	return &model.User{
+		ID:      u.GetId(),
+		Name:    u.GetName(),
+		Surname: u.GetSurname(),
+	}, nil
+}
+
 // Posts is the resolver for the posts field.
 func (r *queryResolver) Posts(ctx context.Context) ([]*model.Post, error) {
-	resp, err := r.Post.GetPosts(ctx, &servicepb.GetPostsRequest{})
+	resp, err := r.PostSvc.GetPosts(ctx, &servicepb.GetPostsRequest{})
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +102,7 @@ func (r *queryResolver) Posts(ctx context.Context) ([]*model.Post, error) {
 
 // PostID is the resolver for the postID field.
 func (r *queryResolver) PostID(ctx context.Context, id string) (*model.Post, error) {
-	resp, err := r.Post.GetPosts(ctx, &servicepb.GetPostsRequest{
+	resp, err := r.PostSvc.GetPosts(ctx, &servicepb.GetPostsRequest{
 		Ids: []string{id},
 	})
 	if err != nil {
@@ -103,16 +129,8 @@ func (r *queryResolver) PostID(ctx context.Context, id string) (*model.Post, err
 // Mutation returns generated.MutationResolver implementation.
 func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
 
-type mutationResolver struct{ *Resolver }
+// Post returns generated.PostResolver implementation.
+func (r *Resolver) Post() generated.PostResolver { return &postResolver{r} }
 
-// !!! WARNING !!!
-// The code below was going to be deleted when updating resolvers. It has been copied here so you have
-// one last chance to move it out of harms way if you want. There are two reasons this happens:
-//  - When renaming or deleting a resolver the old code will be put in here. You can safely delete
-//    it when you're done.
-//  - You have helper methods in this file. Move them out to keep these resolver files clean.
-/*
-	func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error) {
-	panic(fmt.Errorf("not implemented: Post - post"))
-}
-*/
+type mutationResolver struct{ *Resolver }
+type postResolver struct{ *Resolver }

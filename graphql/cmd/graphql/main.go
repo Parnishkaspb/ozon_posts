@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/99designs/gqlgen/graphql/handler"
-	"github.com/99designs/gqlgen/graphql/playground"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/auth"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/config"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph"
+	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/dataloader"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 	"google.golang.org/grpc"
@@ -33,20 +33,27 @@ func main() {
 	authClient := servicepb.NewAuthServiceClient(conn)
 	userClient := servicepb.NewUserServiceClient(conn)
 	postClient := servicepb.NewPostServiceClient(conn)
+	commentClient := servicepb.NewCommentServiceClient(conn)
 
 	srv := handler.NewDefaultServer(generated.NewExecutableSchema(generated.Config{
 		Resolvers: &graph.Resolver{
-			Auth: authClient,
-			User: userClient,
-			Post: postClient,
+			AuthSvc:    authClient,
+			UserSvc:    userClient,
+			PostSvc:    postClient,
+			CommentSvc: commentClient,
 		},
 	}))
 
 	jwtService := auth.New(cfg.JWT.Secret, cfg.JWT.TTL)
 
 	mux := http.NewServeMux()
-	mux.Handle("/", playground.Handler("GraphQL playground", "/query"))
-	mux.Handle("/query", auth.AuthMiddleware(jwtService, srv))
+	queryHandler := auth.AuthMiddleware(jwtService, srv)
+
+	mux.Handle("/query", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		lds := dataloader.New(userClient)
+		ctx := dataloader.Inject(r.Context(), lds)
+		queryHandler.ServeHTTP(w, r.WithContext(ctx))
+	}))
 
 	log.Printf("GraphQL started on :%s", port)
 	log.Fatal(http.ListenAndServe(":"+port, mux))

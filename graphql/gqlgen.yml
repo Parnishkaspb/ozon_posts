@@ -13,3 +13,9 @@ resolver:
 model:
   filename: internal/graph/model/models_gen.go
   package: model
+
+models:
+  Post:
+    fields:
+      author:
+        resolver: true

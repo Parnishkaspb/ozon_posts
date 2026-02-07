@@ -11,16 +11,27 @@ import (
 
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
+	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 )
 
 // Users is the resolver for the users field.
 func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
-	//users, err := r.UserRepo.GetAllUsers(ctx)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//return users, nil
-	panic(fmt.Errorf("not implemented"))
+	resp, err := r.UserSvc.GetUsers(ctx, &servicepb.GetUsersRequest{})
+
+	if err != nil {
+		return nil, err
+	}
+	users := resp.Users
+
+	result := make([]*model.User, len(users))
+	for i, user := range users {
+		result[i] = &model.User{
+			ID:      user.Id,
+			Name:    user.Name,
+			Surname: user.Surname,
+		}
+	}
+	return result, nil
 }
 
 // User is the resolver for the user field.

@@ -1,0 +1,16 @@
+extend type Mutation {
+  createComment(
+    postId: ID!
+    parentId: ID
+    text: String!
+  ): Comment!
+}
+
+type Comment {
+  id: ID!
+  postId: ID!
+  parentId: ID
+  text: String!
+  createdAt: String!
+  author: User!
+}

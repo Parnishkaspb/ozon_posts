@@ -42,7 +42,7 @@ func (s *CommentService) normalizeAndValidateText(text string) (string, error) {
 	if text == "" {
 		return "", posts.ErrTextRequired
 	}
-	if len(text) > 2000 {
+	if len([]rune(text)) > 2000 {
 		return "", ErrMax2000Symbols
 	}
 	return text, nil
