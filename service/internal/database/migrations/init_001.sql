@@ -40,3 +40,6 @@ CREATE INDEX comments_post_root_idx
 
 CREATE INDEX comments_parent_idx
     ON comments (parent_id, created_at, id);
+
+CREATE INDEX IF NOT EXISTS comments_post_parent_created_id_idx
+    ON comments (post_id, parent_id, created_at DESC, id DESC);

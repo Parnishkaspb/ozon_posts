@@ -59,6 +59,9 @@ type PostEdge struct {
 type Query struct {
 }
 
+type Subscription struct {
+}
+
 type User struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`

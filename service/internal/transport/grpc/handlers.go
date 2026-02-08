@@ -166,3 +166,22 @@ func (h *Handler) CreateComment(ctx context.Context, req *servicepb.CreateCommen
 		CreatedAt: timestamppb.New(comment.CreatedAt),
 	}}, nil
 }
+
+func (h *Handler) GetComments(ctx context.Context, req *servicepb.GetCommentsRequest) (*servicepb.GetCommentsResponse, error) {
+	resp, err := h.app.CommentSRV.GetComments(ctx, req)
+	if err != nil {
+		return nil, grpcErr(err)
+	}
+	return resp, nil
+}
+
+func grpcErr(err error) error {
+	switch {
+	case errors.Is(err, comments.ErrPostIDRequired):
+		return status.Error(codes.InvalidArgument, err.Error())
+	case errors.Is(err, comments.ErrInvalidCursor):
+		return status.Error(codes.InvalidArgument, err.Error())
+	default:
+		return status.Error(codes.Internal, "internal server error")
+	}
+}

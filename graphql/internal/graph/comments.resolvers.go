@@ -62,14 +62,18 @@ func (r *mutationResolver) CreateComment(ctx context.Context, postID string, par
 		createdAt = ts.AsTime().UTC().Format(time.RFC3339)
 	}
 
-	return &model.Comment{
+	comment := &model.Comment{
 		ID:        c.GetId(),
 		PostID:    c.GetPostId(),
 		ParentID:  pID,
 		Text:      c.GetText(),
 		CreatedAt: createdAt,
 		AuthorID:  c.GetAuthorId(),
-	}, nil
+	}
+
+	r.SubSvc.Publish(comment.PostID, comment)
+
+	return comment, nil
 }
 
 // Comment returns generated.CommentResolver implementation.

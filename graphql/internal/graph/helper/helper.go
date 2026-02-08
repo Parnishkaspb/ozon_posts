@@ -8,6 +8,7 @@ import (
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 	"github.com/graph-gophers/dataloader"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"time"
 )
 
@@ -38,7 +39,7 @@ func ResolveAuthor(ctx context.Context, authorID string) (*model.User, error) {
 	}, nil
 }
 
-func MakePostCursor(p *servicepb.Post) string {
-	raw := p.GetCreatedAt().AsTime().UTC().Format(time.RFC3339Nano) + "|" + p.GetId()
+func MakeCursor(ts *timestamppb.Timestamp, id string) string {
+	raw := ts.AsTime().UTC().Format(time.RFC3339Nano) + "|" + id
 	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }

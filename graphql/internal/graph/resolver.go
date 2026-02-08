@@ -1,6 +1,9 @@
 package graph
 
-import servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
+import (
+	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/subscriptions"
+	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
+)
 
 // This file will not be regenerated automatically.
 //
@@ -12,4 +15,6 @@ type Resolver struct {
 	UserSvc    servicepb.UserServiceClient
 	PostSvc    servicepb.PostServiceClient
 	CommentSvc servicepb.CommentServiceClient
+
+	SubSvc *subscriptions.Subscription
 }

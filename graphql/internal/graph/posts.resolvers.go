@@ -61,7 +61,54 @@ func (r *postResolver) Author(ctx context.Context, obj *model.Post) (*model.User
 
 // Comments is the resolver for the comments field.
 func (r *postResolver) Comments(ctx context.Context, obj *model.Post, first int, after *string) (*model.CommentConnection, error) {
-	panic(fmt.Errorf("not implemented: Comments - comments"))
+	req := &servicepb.GetCommentsRequest{
+		PostId:   obj.ID,
+		ParentId: "",
+		First:    int32(first),
+	}
+	if after != nil {
+		req.After = *after
+	}
+
+	resp, err := r.CommentSvc.GetComments(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	edges := make([]*model.CommentEdge, 0, len(resp.GetComments()))
+	for _, c := range resp.GetComments() {
+		node := &model.Comment{
+			ID:        c.GetId(),
+			PostID:    c.GetPostId(),
+			Text:      c.GetText(),
+			CreatedAt: c.GetCreatedAt().AsTime().UTC().Format(time.RFC3339),
+			AuthorID:  c.GetAuthorId(),
+		}
+
+		if c.GetParentId() != "" {
+			pid := c.GetParentId()
+			node.ParentID = &pid
+		}
+
+		edges = append(edges, &model.CommentEdge{
+			Cursor: helpergraph.MakeCursor(c.GetCreatedAt(), c.GetId()),
+			Node:   node,
+		})
+	}
+
+	var endCursor *string
+	if resp.GetEndCursor() != "" {
+		c := resp.GetEndCursor()
+		endCursor = &c
+	}
+
+	return &model.CommentConnection{
+		Edges: edges,
+		PageInfo: &model.PageInfo{
+			EndCursor:   endCursor,
+			HasNextPage: resp.GetHasNextPage(),
+		},
+	}, nil
 }
 
 // Posts is the resolver for the posts field.
@@ -92,7 +139,7 @@ func (r *queryResolver) Posts(ctx context.Context, first int, after *string) (*m
 		}
 
 		edges = append(edges, &model.PostEdge{
-			Cursor: helpergraph.MakePostCursor(p),
+			Cursor: helpergraph.MakeCursor(p.GetCreatedAt(), p.GetId()),
 			Node:   node,
 		})
 	}
