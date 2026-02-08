@@ -13,8 +13,8 @@ type Config struct {
 }
 
 type Token struct {
-	Secret string
-	TTL    time.Duration
+	Secret string        `yaml:"secret_key"`
+	TTL    time.Duration `yaml:"ttl"`
 }
 
 func MustLoad(path string) *Config {

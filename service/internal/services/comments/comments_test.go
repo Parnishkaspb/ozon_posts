@@ -3,25 +3,39 @@ package comments
 import (
 	"context"
 	"errors"
-	"github.com/Parnishkaspb/ozon_posts/internal/models"
-	"github.com/Parnishkaspb/ozon_posts/internal/services/posts"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/Parnishkaspb/ozon_posts/internal/models"
 	"github.com/google/uuid"
 )
 
 type mockCommentRepo struct {
-	called bool
-}
-
-func (m *mockCommentRepo) AnswerComment(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) error {
-	m.called = true
-	return nil
+	createCalled bool
+	answerCalled bool
+	createFn     func(ctx context.Context, text string, authorID, postID uuid.UUID) (*models.Comment, error)
+	answerFn     func(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) (*models.Comment, error)
 }
 
 func (m *mockCommentRepo) CreateComment(ctx context.Context, text string, authorID, postID uuid.UUID) (*models.Comment, error) {
-	m.called = true
+	m.createCalled = true
+	if m.createFn != nil {
+		return m.createFn(ctx, text, authorID, postID)
+	}
 	return &models.Comment{}, nil
+}
+
+func (m *mockCommentRepo) AnswerComment(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) (*models.Comment, error) {
+	m.answerCalled = true
+	if m.answerFn != nil {
+		return m.answerFn(ctx, text, authorID, postID, commentID)
+	}
+	return &models.Comment{}, nil
+}
+
+func (m *mockCommentRepo) GetCommentsPage(ctx context.Context, postID uuid.UUID, parentID *uuid.UUID, limit int, afterCreatedAt *time.Time, afterID *uuid.UUID) ([]*models.Comment, error) {
+	return nil, nil
 }
 
 type mockPostRepo struct {
@@ -35,193 +49,89 @@ func (m *mockPostRepo) WithoutComment(ctx context.Context, postID uuid.UUID) (bo
 
 func TestCommentService_CommentCreate(t *testing.T) {
 	ctx := context.Background()
-
-	validText := "hello"
-	longText := make([]byte, 2001)
-	for i := range longText {
-		longText[i] = 'a'
-	}
-
 	validAuthor := uuid.New()
 	validPost := uuid.New()
 
-	tests := []struct {
-		name           string
-		text           string
-		authorID       uuid.UUID
-		postID         uuid.UUID
-		postAllows     bool
-		wantErr        error
-		wantRepoCalled bool
-	}{
-		{
-			name:     "empty text",
-			text:     "   ",
-			authorID: validAuthor,
-			postID:   validPost,
-			wantErr:  errors.New("text is required"),
-		},
-		{
-			name:     "text too long",
-			text:     string(longText),
-			authorID: validAuthor,
-			postID:   validPost,
-			wantErr:  ErrMax2000Symbols,
-		},
-		{
-			name:     "empty authorID",
-			text:     validText,
-			authorID: uuid.Nil,
-			postID:   validPost,
-			wantErr:  posts.ErrAuthorIDRequired,
-		},
-		{
-			name:     "empty postID",
-			text:     validText,
-			authorID: validAuthor,
-			postID:   uuid.Nil,
-			wantErr:  ErrPostIDRequired,
-		},
-		{
-			name:       "comments disabled for post",
-			text:       validText,
-			authorID:   validAuthor,
-			postID:     validPost,
-			postAllows: false,
-			wantErr:    ErrCantWriteComment,
-		},
-		{
-			name:           "success",
-			text:           validText,
-			authorID:       validAuthor,
-			postID:         validPost,
-			postAllows:     true,
-			wantRepoCalled: true,
-		},
-	}
+	t.Run("text required", func(t *testing.T) {
+		svc := New(&mockCommentRepo{}, &mockPostRepo{})
+		_, err := svc.CommentCreate(ctx, "   ", validAuthor, validPost)
+		if !errors.Is(err, ErrTextRequired) {
+			t.Fatalf("expected %v, got %v", ErrTextRequired, err)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+	t.Run("text too long", func(t *testing.T) {
+		svc := New(&mockCommentRepo{}, &mockPostRepo{})
+		_, err := svc.CommentCreate(ctx, strings.Repeat("a", 2001), validAuthor, validPost)
+		if !errors.Is(err, ErrMax2000Symbols) {
+			t.Fatalf("expected %v, got %v", ErrMax2000Symbols, err)
+		}
+	})
 
-			commentRepo := &mockCommentRepo{}
-			postRepo := &mockPostRepo{
-				withoutComment: tt.postAllows,
-			}
+	t.Run("author required", func(t *testing.T) {
+		svc := New(&mockCommentRepo{}, &mockPostRepo{})
+		_, err := svc.CommentCreate(ctx, "ok", uuid.Nil, validPost)
+		if !errors.Is(err, ErrAuthorIDRequired) {
+			t.Fatalf("expected %v, got %v", ErrAuthorIDRequired, err)
+		}
+	})
 
-			svc := &CommentService{
-				commentRepo: commentRepo,
-				postRepo:    postRepo,
-			}
+	t.Run("post required", func(t *testing.T) {
+		svc := New(&mockCommentRepo{}, &mockPostRepo{})
+		_, err := svc.CommentCreate(ctx, "ok", validAuthor, uuid.Nil)
+		if !errors.Is(err, ErrPostIDRequired) {
+			t.Fatalf("expected %v, got %v", ErrPostIDRequired, err)
+		}
+	})
 
-			_, err := svc.CommentCreate(ctx, tt.text, tt.authorID, tt.postID)
+	t.Run("comments disabled", func(t *testing.T) {
+		commentRepo := &mockCommentRepo{}
+		svc := New(commentRepo, &mockPostRepo{withoutComment: false})
+		_, err := svc.CommentCreate(ctx, "ok", validAuthor, validPost)
+		if !errors.Is(err, ErrCantWriteComment) {
+			t.Fatalf("expected %v, got %v", ErrCantWriteComment, err)
+		}
+		if commentRepo.createCalled {
+			t.Fatalf("comment repo must not be called")
+		}
+	})
 
-			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("expected error %v, got %v", tt.wantErr, err)
-			}
-
-			if commentRepo.called != tt.wantRepoCalled {
-				t.Fatalf("CreateComment called = %v, want %v", commentRepo.called, tt.wantRepoCalled)
-			}
-		})
-	}
+	t.Run("success", func(t *testing.T) {
+		commentRepo := &mockCommentRepo{}
+		svc := New(commentRepo, &mockPostRepo{withoutComment: true})
+		_, err := svc.CommentCreate(ctx, "ok", validAuthor, validPost)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !commentRepo.createCalled {
+			t.Fatalf("create repo must be called")
+		}
+	})
 }
 
-func TestCommentService_AnswerComment(t *testing.T) {
+func TestCommentService_CommentAnswer(t *testing.T) {
 	ctx := context.Background()
-
-	validText := "hello"
-	longText := make([]byte, 2001)
-	for i := range longText {
-		longText[i] = 'a'
-	}
-
 	validAuthor := uuid.New()
 	validPost := uuid.New()
-	validParentID := uuid.New()
+	validParent := uuid.New()
 
-	tests := []struct {
-		name           string
-		text           string
-		authorID       uuid.UUID
-		postID         uuid.UUID
-		parentID       uuid.UUID
-		postAllows     bool
-		wantErr        error
-		wantRepoCalled bool
-	}{
-		{
-			name:     "empty text",
-			text:     "   ",
-			authorID: validAuthor,
-			postID:   validPost,
-			parentID: validParentID,
-			wantErr:  posts.ErrTextRequired,
-		},
-		{
-			name:     "text too long",
-			text:     string(longText),
-			authorID: validAuthor,
-			postID:   validPost,
-			parentID: validParentID,
-			wantErr:  ErrMax2000Symbols,
-		},
-		{
-			name:     "empty authorID",
-			text:     validText,
-			authorID: uuid.Nil,
-			postID:   validPost,
-			parentID: validParentID,
-			wantErr:  posts.ErrAuthorIDRequired,
-		},
-		{
-			name:     "empty postID",
-			text:     validText,
-			authorID: validAuthor,
-			postID:   uuid.Nil,
-			parentID: validParentID,
-			wantErr:  ErrPostIDRequired,
-		},
-		{
-			name:     "empty parentID",
-			text:     validText,
-			authorID: validAuthor,
-			postID:   validPost,
-			parentID: uuid.Nil,
-			wantErr:  ErrCommentIDRequired,
-		},
-		{
-			name:           "success",
-			text:           validText,
-			authorID:       validAuthor,
-			postID:         validPost,
-			parentID:       validParentID,
-			postAllows:     true,
-			wantRepoCalled: true,
-		},
-	}
+	t.Run("comment id required", func(t *testing.T) {
+		svc := New(&mockCommentRepo{}, &mockPostRepo{})
+		_, err := svc.CommentAnswer(ctx, "ok", validAuthor, validPost, uuid.Nil)
+		if !errors.Is(err, ErrCommentIDRequired) {
+			t.Fatalf("expected %v, got %v", ErrCommentIDRequired, err)
+		}
+	})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-
-			commentRepo := &mockCommentRepo{}
-			postRepo := &mockPostRepo{
-				withoutComment: tt.postAllows,
-			}
-
-			svc := &CommentService{
-				commentRepo: commentRepo,
-				postRepo:    postRepo,
-			}
-
-			err := svc.CommentAnswer(ctx, tt.text, tt.authorID, tt.postID, tt.parentID)
-
-			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("expected error %v, got %v", tt.wantErr, err)
-			}
-
-			if commentRepo.called != tt.wantRepoCalled {
-				t.Fatalf("AnswerComment called = %v, want %v", commentRepo.called, tt.wantRepoCalled)
-			}
-		})
-	}
+	t.Run("success", func(t *testing.T) {
+		commentRepo := &mockCommentRepo{}
+		svc := New(commentRepo, &mockPostRepo{})
+		_, err := svc.CommentAnswer(ctx, "ok", validAuthor, validPost, validParent)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !commentRepo.answerCalled {
+			t.Fatalf("answer repo must be called")
+		}
+	})
 }

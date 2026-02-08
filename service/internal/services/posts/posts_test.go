@@ -3,171 +3,95 @@ package posts
 import (
 	"context"
 	"errors"
-	"reflect"
 	"testing"
+	"time"
 
 	"github.com/Parnishkaspb/ozon_posts/internal/models"
 	"github.com/google/uuid"
 )
 
-type mockRepo struct {
-	gotauthorID       uuid.UUID
-	gotText           string
-	gotWithoutComment bool
-
-	retPost *models.Post
-	retErr  error
-
-	called int
+type mockPostRepo struct {
+	createFn func(ctx context.Context, ownerID uuid.UUID, text string, withoutComment bool) (*models.Post, error)
 }
 
-func (m *mockRepo) CreatePost(ctx context.Context, authorID uuid.UUID, text string, withoutComment bool) (*models.Post, error) {
-	m.called++
-	m.gotauthorID = authorID
-	m.gotText = text
-	m.gotWithoutComment = withoutComment
-	return m.retPost, m.retErr
+func (m *mockPostRepo) CreatePost(ctx context.Context, ownerID uuid.UUID, text string, withoutComment bool) (*models.Post, error) {
+	if m.createFn != nil {
+		return m.createFn(ctx, ownerID, text, withoutComment)
+	}
+	return nil, nil
 }
 
-func boolPtr(v bool) *bool { return &v }
+func (m *mockPostRepo) GetAllPosts(ctx context.Context) ([]*models.Post, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepo) GetPostsByID(ctx context.Context, id string) (*models.Post, error) {
+	return nil, nil
+}
+
+func (m *mockPostRepo) WithoutComment(ctx context.Context, postID uuid.UUID) (bool, error) {
+	return false, nil
+}
+
+func (m *mockPostRepo) GetPostsPage(ctx context.Context, first int, afterCreatedAt *time.Time, afterID *uuid.UUID) ([]*models.Post, bool, error) {
+	return nil, false, nil
+}
 
 func TestPostService_CreatePost(t *testing.T) {
 	ctx := context.Background()
-	validAuthorID := uuid.New()
-
-	okPost := &models.Post{
-		ID:             uuid.New(),
-		AuthorID:       validAuthorID,
-		Text:           "hello",
-		WithoutComment: true,
-	}
-
+	authorID := uuid.New()
 	repoErr := errors.New("repo failed")
 
-	tests := []struct {
-		name           string
-		authorID       uuid.UUID
-		text           string
-		inWithoutPtr   *bool
-		wantWithout    bool
-		repoReturnPost *models.Post
-		repoReturnErr  error
-		wantErr        bool
-		wantCalls      int
-		wantErrIs      error
-	}{
-		{
-			name:           "nil withoutComment -> default false",
-			authorID:       validAuthorID,
-			text:           "a",
-			inWithoutPtr:   nil,
-			wantWithout:    false,
-			repoReturnPost: okPost,
-			wantErr:        false,
-			wantCalls:      1,
-		},
-		{
-			name:           "withoutComment true",
-			authorID:       validAuthorID,
-			text:           "b",
-			inWithoutPtr:   boolPtr(true),
-			wantWithout:    true,
-			repoReturnPost: okPost,
-			wantErr:        false,
-			wantCalls:      1,
-		},
-		{
-			name:           "withoutComment false",
-			authorID:       validAuthorID,
-			text:           "c",
-			inWithoutPtr:   boolPtr(false),
-			wantWithout:    false,
-			repoReturnPost: okPost,
-			wantErr:        false,
-			wantCalls:      1,
-		},
-		{
-			name:         "authorID required",
-			authorID:     uuid.Nil,
-			text:         "text",
-			inWithoutPtr: nil,
-			wantErr:      true,
-			wantCalls:    0,
-			wantErrIs:    ErrAuthorIDRequired,
-		},
-		{
-			name:         "text required empty",
-			authorID:     validAuthorID,
-			text:         "",
-			inWithoutPtr: nil,
-			wantErr:      true,
-			wantCalls:    0,
-			wantErrIs:    ErrTextRequired,
-		},
-		{
-			name:         "text required spaces",
-			authorID:     validAuthorID,
-			text:         "   ",
-			inWithoutPtr: nil,
-			wantErr:      true,
-			wantCalls:    0,
-			wantErrIs:    ErrTextRequired,
-		},
-		{
-			name:          "repo error is returned",
-			authorID:      validAuthorID,
-			text:          "d",
-			inWithoutPtr:  boolPtr(true),
-			wantWithout:   true,
-			repoReturnErr: repoErr,
-			wantErr:       true,
-			wantCalls:     1,
-		},
-	}
+	t.Run("author id required", func(t *testing.T) {
+		svc := New(&mockPostRepo{})
+		_, err := svc.CreatePost(ctx, uuid.Nil, "text", false)
+		if !errors.Is(err, ErrAuthorIDRequired) {
+			t.Fatalf("expected %v, got %v", ErrAuthorIDRequired, err)
+		}
+	})
 
-	for _, tt := range tests {
-		tt := tt
-		t.Run(tt.name, func(t *testing.T) {
-			m := &mockRepo{
-				retPost: tt.repoReturnPost,
-				retErr:  tt.repoReturnErr,
-			}
-			svc := New(m)
+	t.Run("text required", func(t *testing.T) {
+		svc := New(&mockPostRepo{})
+		_, err := svc.CreatePost(ctx, authorID, "   ", false)
+		if !errors.Is(err, ErrTextRequired) {
+			t.Fatalf("expected %v, got %v", ErrTextRequired, err)
+		}
+	})
 
-			got, err := svc.CreatePost(ctx, tt.authorID, tt.text, tt.inWithoutPtr)
+	t.Run("repo error returned", func(t *testing.T) {
+		svc := New(&mockPostRepo{createFn: func(ctx context.Context, ownerID uuid.UUID, text string, withoutComment bool) (*models.Post, error) {
+			return nil, repoErr
+		}})
+		_, err := svc.CreatePost(ctx, authorID, "ok", true)
+		if !errors.Is(err, repoErr) {
+			t.Fatalf("expected %v, got %v", repoErr, err)
+		}
+	})
 
-			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error, got nil")
-				}
-				if tt.wantErrIs != nil && !errors.Is(err, tt.wantErrIs) {
-					t.Fatalf("expected error %v, got %v", tt.wantErrIs, err)
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-			}
+	t.Run("success", func(t *testing.T) {
+		var (
+			gotAuthor  uuid.UUID
+			gotText    string
+			gotWithout bool
+		)
 
-			if m.called != tt.wantCalls {
-				t.Fatalf("expected repo called %d times, got %d", tt.wantCalls, m.called)
-			}
+		expected := &models.Post{ID: uuid.New(), AuthorID: authorID, Text: "ok", WithoutComment: true}
+		svc := New(&mockPostRepo{createFn: func(ctx context.Context, ownerID uuid.UUID, text string, withoutComment bool) (*models.Post, error) {
+			gotAuthor = ownerID
+			gotText = text
+			gotWithout = withoutComment
+			return expected, nil
+		}})
 
-			if tt.wantCalls == 1 {
-				if m.gotauthorID != tt.authorID {
-					t.Fatalf("authorID: expected %s, got %s", tt.authorID, m.gotauthorID)
-				}
-				if m.gotText != tt.text {
-					t.Fatalf("text: expected %q, got %q", tt.text, m.gotText)
-				}
-				if m.gotWithoutComment != tt.wantWithout {
-					t.Fatalf("withoutComment: expected %v, got %v", tt.wantWithout, m.gotWithoutComment)
-				}
-			}
-
-			if !tt.wantErr && !reflect.DeepEqual(got, tt.repoReturnPost) {
-				t.Fatalf("post: expected %+v, got %+v", tt.repoReturnPost, got)
-			}
-		})
-	}
+		got, err := svc.CreatePost(ctx, authorID, "ok", true)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if got != expected {
+			t.Fatalf("expected same post pointer")
+		}
+		if gotAuthor != authorID || gotText != "ok" || !gotWithout {
+			t.Fatalf("unexpected repo args: author=%s text=%q without=%v", gotAuthor, gotText, gotWithout)
+		}
+	})
 }

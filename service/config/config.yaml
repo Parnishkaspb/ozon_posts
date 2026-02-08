@@ -1,6 +1,9 @@
 grpc:
   port: 9090
 
+storage:
+  driver: "postgres"
+
 postgresql:
   user: "user"
   password: "password"

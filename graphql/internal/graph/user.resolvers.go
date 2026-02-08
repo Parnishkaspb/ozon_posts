@@ -7,7 +7,6 @@ package graph
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
@@ -36,7 +35,19 @@ func (r *queryResolver) Users(ctx context.Context) ([]*model.User, error) {
 
 // User is the resolver for the user field.
 func (r *queryResolver) User(ctx context.Context, id string) (*model.User, error) {
-	panic(fmt.Errorf("not implemented: User - user"))
+	resp, err := r.UserSvc.GetUsers(ctx, &servicepb.GetUsersRequest{Ids: []string{id}})
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.GetUsers()) == 0 {
+		return nil, nil
+	}
+	u := resp.GetUsers()[0]
+	return &model.User{
+		ID:      u.GetId(),
+		Name:    u.GetName(),
+		Surname: u.GetSurname(),
+	}, nil
 }
 
 // Query returns generated.QueryResolver implementation.

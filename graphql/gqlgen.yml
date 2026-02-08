@@ -25,3 +25,5 @@ models:
     fields:
       author:
         resolver: true
+      replies:
+        resolver: true

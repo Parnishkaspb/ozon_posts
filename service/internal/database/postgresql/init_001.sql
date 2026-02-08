@@ -1,6 +1,6 @@
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     name text NOT NULL,
     surname text NOT NULL,
@@ -12,7 +12,7 @@ INSERT INTO users (name, surname, login, password)
 VALUES ('Иван', 'Грозный', 'Ivan', 'MoscowNeverSleep')
 ON CONFLICT (login) DO NOTHING;
 
-CREATE TABLE posts (
+CREATE TABLE IF NOT EXISTS posts (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     author_id uuid NOT NULL,
     text text NOT NULL,
@@ -23,7 +23,7 @@ CREATE TABLE posts (
     CONSTRAINT posts_author_fk FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE comments (
+CREATE TABLE IF NOT EXISTS comments (
     id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     post_id uuid NOT NULL,
     author_id uuid NOT NULL,
@@ -36,11 +36,11 @@ CREATE TABLE comments (
     CONSTRAINT comments_parent_fk FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE CASCADE
 );
 
-CREATE INDEX comments_post_root_idx
+CREATE INDEX IF NOT EXISTS comments_post_root_idx
     ON comments (post_id, created_at, id)
     WHERE parent_id IS NULL;
 
-CREATE INDEX comments_parent_idx
+CREATE INDEX IF NOT EXISTS comments_parent_idx
     ON comments (parent_id, created_at, id);
 
 CREATE INDEX IF NOT EXISTS comments_post_parent_created_id_idx

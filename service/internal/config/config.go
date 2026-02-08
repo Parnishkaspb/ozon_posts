@@ -10,6 +10,7 @@ import (
 
 type Config struct {
 	PostgreSQL PostgreSQLConfig `yaml:"postgresql"`
+	Storage    StorageConfig    `yaml:"storage"`
 	JWT        Token            `yaml:"jwt"`
 	GRPC       GRPC             `yaml:"grpc"`
 }
@@ -19,8 +20,12 @@ type GRPC struct {
 }
 
 type Token struct {
-	Secret string
-	TTL    time.Duration
+	Secret string        `yaml:"secret_key"`
+	TTL    time.Duration `yaml:"ttl"`
+}
+
+type StorageConfig struct {
+	Driver string `yaml:"driver"`
 }
 
 type PostgreSQLConfig struct {

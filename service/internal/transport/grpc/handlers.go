@@ -28,10 +28,7 @@ func New(a *app.App) *Handler {
 	return &Handler{app: a}
 }
 
-func (h *Handler) Login(
-	ctx context.Context,
-	req *servicepb.LoginRequest,
-) (*servicepb.LoginResponse, error) {
+func (h *Handler) Login(ctx context.Context, req *servicepb.LoginRequest) (*servicepb.LoginResponse, error) {
 
 	token, err := h.app.Auth.Authenticate(ctx, req.GetLogin(), req.GetPassword())
 
@@ -50,10 +47,7 @@ func (h *Handler) Login(
 	}, nil
 }
 
-func (h *Handler) CreatePost(
-	ctx context.Context,
-	req *servicepb.CreatePostRequest,
-) (*servicepb.CreatePostResponse, error) {
+func (h *Handler) CreatePost(ctx context.Context, req *servicepb.CreatePostRequest) (*servicepb.CreatePostResponse, error) {
 
 	authorID, err := uuid.Parse(req.GetAuthorId())
 	if err != nil {
@@ -95,6 +89,28 @@ func (h *Handler) GetPosts(ctx context.Context, req *servicepb.GetPostsRequest) 
 		Posts:       postsAnswer,
 		EndCursor:   endCursor,
 		HasNextPage: hasNext,
+	}, nil
+}
+
+func (h *Handler) GetPost(ctx context.Context, req *servicepb.GetPostRequest) (*servicepb.GetPostResponse, error) {
+	postsFound, err := h.app.PostSRV.GetAllPosts(ctx, []string{req.GetId()})
+	if err != nil {
+		return nil, status.Error(codes.Internal, "internal server error")
+	}
+	if len(postsFound) == 0 {
+		return &servicepb.GetPostResponse{}, nil
+	}
+
+	p := postsFound[0]
+	return &servicepb.GetPostResponse{
+		Post: &servicepb.Post{
+			Id:             p.ID.String(),
+			AuthorId:       p.AuthorID.String(),
+			Text:           p.Text,
+			WithoutComment: p.WithoutComment,
+			CreatedAt:      timestamppb.New(p.CreatedAt),
+			UpdatedAt:      timestamppb.New(p.UpdatedAt),
+		},
 	}, nil
 }
 

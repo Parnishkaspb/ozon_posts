@@ -22,6 +22,58 @@ func (r *commentResolver) Author(ctx context.Context, obj *model.Comment) (*mode
 	return helpergraph.ResolveAuthor(ctx, obj.AuthorID)
 }
 
+// Replies is the resolver for the replies field.
+func (r *commentResolver) Replies(ctx context.Context, obj *model.Comment, first int, after *string) (*model.CommentConnection, error) {
+	req := &servicepb.GetCommentsRequest{
+		PostId:   obj.PostID,
+		ParentId: obj.ID,
+		First:    int32(first),
+	}
+	if after != nil {
+		req.After = *after
+	}
+
+	resp, err := r.CommentSvc.GetComments(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	edges := make([]*model.CommentEdge, 0, len(resp.GetComments()))
+	for _, c := range resp.GetComments() {
+		node := &model.Comment{
+			ID:        c.GetId(),
+			PostID:    c.GetPostId(),
+			Text:      c.GetText(),
+			CreatedAt: c.GetCreatedAt().AsTime().UTC().Format(time.RFC3339),
+			AuthorID:  c.GetAuthorId(),
+		}
+
+		if c.GetParentId() != "" {
+			pid := c.GetParentId()
+			node.ParentID = &pid
+		}
+
+		edges = append(edges, &model.CommentEdge{
+			Cursor: helpergraph.MakeCursor(c.GetCreatedAt(), c.GetId()),
+			Node:   node,
+		})
+	}
+
+	var endCursor *string
+	if resp.GetEndCursor() != "" {
+		c := resp.GetEndCursor()
+		endCursor = &c
+	}
+
+	return &model.CommentConnection{
+		Edges: edges,
+		PageInfo: &model.PageInfo{
+			EndCursor:   endCursor,
+			HasNextPage: resp.GetHasNextPage(),
+		},
+	}, nil
+}
+
 // CreateComment is the resolver for the createComment field.
 func (r *mutationResolver) CreateComment(ctx context.Context, postID string, parentID *string, text string) (*model.Comment, error) {
 	u, ok := helper.FromContext(ctx)
@@ -76,7 +128,23 @@ func (r *mutationResolver) CreateComment(ctx context.Context, postID string, par
 	return comment, nil
 }
 
+// CommentAdded is the resolver for the commentAdded field.
+func (r *subscriptionResolver) CommentAdded(ctx context.Context, postID string) (<-chan *model.Comment, error) {
+	ch := r.SubSvc.Subscribe(postID)
+
+	go func() {
+		<-ctx.Done()
+		r.SubSvc.Unsubscribe(postID, ch)
+	}()
+
+	return ch, nil
+}
+
 // Comment returns generated.CommentResolver implementation.
 func (r *Resolver) Comment() generated.CommentResolver { return &commentResolver{r} }
 
+// Subscription returns generated.SubscriptionResolver implementation.
+func (r *Resolver) Subscription() generated.SubscriptionResolver { return &subscriptionResolver{r} }
+
 type commentResolver struct{ *Resolver }
+type subscriptionResolver struct{ *Resolver }

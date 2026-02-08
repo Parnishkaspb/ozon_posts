@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/Parnishkaspb/ozon_posts/internal/models"
 	"github.com/google/uuid"
-	"log"
 )
 
 type UserRepo interface {
@@ -32,7 +31,6 @@ func (s *UserService) GetUserByID(ctx context.Context, userID uuid.UUID) (*model
 }
 
 func (s *UserService) GetUsersByIds(ctx context.Context, ids []string) ([]*models.User, error) {
-	log.Printf("IDS: +%v", ids)
 	if len(ids) == 0 {
 		return s.repo.GetAllUsers(ctx)
 	}

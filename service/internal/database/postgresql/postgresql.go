@@ -16,6 +16,10 @@ func New(ctx context.Context, dsn string) (*DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("pgxpool.New: %w", err)
 	}
+	if err := runMigrations(ctx, pool); err != nil {
+		pool.Close()
+		return nil, err
+	}
 	return &DB{Pool: pool}, nil
 }
 

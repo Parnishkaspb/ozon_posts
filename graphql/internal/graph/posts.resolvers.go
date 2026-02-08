@@ -8,7 +8,6 @@ package graph
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
@@ -38,11 +37,8 @@ func (r *mutationResolver) CreatePost(ctx context.Context, text string, withoutC
 	})
 
 	if err != nil {
-		log.Printf("ERROR: %+v", err)
 		return nil, err
 	}
-
-	log.Printf("POST: %+v", resp)
 
 	return &model.Post{
 		ID:             resp.Post.Id,
@@ -160,7 +156,23 @@ func (r *queryResolver) Posts(ctx context.Context, first int, after *string) (*m
 
 // Post is the resolver for the post field.
 func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error) {
-	panic(fmt.Errorf("not implemented: Post - post"))
+	resp, err := r.PostSvc.GetPost(ctx, &servicepb.GetPostRequest{Id: id})
+	if err != nil {
+		return nil, err
+	}
+	p := resp.GetPost()
+	if p == nil {
+		return nil, nil
+	}
+
+	return &model.Post{
+		ID:             p.GetId(),
+		Text:           p.GetText(),
+		WithoutComment: p.GetWithoutComment(),
+		CreatedAt:      p.GetCreatedAt().AsTime().UTC().Format(time.RFC3339),
+		UpdatedAt:      p.GetUpdatedAt().AsTime().UTC().Format(time.RFC3339),
+		AuthorID:       p.GetAuthorId(),
+	}, nil
 }
 
 // Post returns generated.PostResolver implementation.

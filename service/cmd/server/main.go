@@ -31,7 +31,7 @@ func main() {
 
 	jwtService := auth.New(cfg.JWT.Secret, cfg.JWT.TTL)
 
-	a, err := app.New(context.Background(), cfg.PostgresDSN(), jwtService)
+	a, err := app.New(context.Background(), cfg, jwtService)
 	if err != nil {
 		log.Fatal(err)
 	}
