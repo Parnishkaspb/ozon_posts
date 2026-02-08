@@ -2,11 +2,13 @@ package helpergraph
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	graphdataloader "github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/dataloader"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 	"github.com/graph-gophers/dataloader"
+	"time"
 )
 
 func ResolveAuthor(ctx context.Context, authorID string) (*model.User, error) {
@@ -34,4 +36,9 @@ func ResolveAuthor(ctx context.Context, authorID string) (*model.User, error) {
 		Name:    u.GetName(),
 		Surname: u.GetSurname(),
 	}, nil
+}
+
+func MakePostCursor(p *servicepb.Post) string {
+	raw := p.GetCreatedAt().AsTime().UTC().Format(time.RFC3339Nano) + "|" + p.GetId()
+	return base64.RawURLEncoding.EncodeToString([]byte(raw))
 }

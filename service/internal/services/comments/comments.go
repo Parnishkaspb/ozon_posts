@@ -14,11 +14,13 @@ var (
 	ErrMax2000Symbols    = errors.New("text max 2000 symbols")
 	ErrCommentIDRequired = errors.New("commentID is required")
 	ErrCantWriteComment  = errors.New("can't write a comment to this post")
+	ErrAuthorIDRequired  = errors.New("authorID is required")
+	ErrTextRequired      = errors.New("text is required")
 )
 
 type CommentRepo interface {
 	CreateComment(ctx context.Context, text string, authorID, postID uuid.UUID) (*models.Comment, error)
-	AnswerComment(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) error
+	AnswerComment(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) (*models.Comment, error)
 }
 
 type PostRepo interface {
@@ -40,7 +42,7 @@ func New(comment CommentRepo, post PostRepo) *CommentService {
 func (s *CommentService) normalizeAndValidateText(text string) (string, error) {
 	text = strings.TrimSpace(text)
 	if text == "" {
-		return "", errors.New("text is required")
+		return "", ErrTextRequired
 	}
 	if len([]rune(text)) > 2000 {
 		return "", ErrMax2000Symbols
@@ -60,7 +62,7 @@ func (s *CommentService) CommentCreate(ctx context.Context, text string, authorI
 	if err != nil {
 		return &models.Comment{}, err
 	}
-	if err := s.requireUUID(authorID, errors.New("authorID is required")); err != nil {
+	if err := s.requireUUID(authorID, ErrAuthorIDRequired); err != nil {
 		return &models.Comment{}, err
 	}
 	if err := s.requireUUID(postID, ErrPostIDRequired); err != nil {
@@ -79,19 +81,19 @@ func (s *CommentService) CommentCreate(ctx context.Context, text string, authorI
 	return s.commentRepo.CreateComment(ctx, text, authorID, postID)
 }
 
-func (s *CommentService) CommentAnswer(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) error {
+func (s *CommentService) CommentAnswer(ctx context.Context, text string, authorID, postID, commentID uuid.UUID) (*models.Comment, error) {
 	text, err := s.normalizeAndValidateText(text)
 	if err != nil {
-		return err
+		return &models.Comment{}, err
 	}
-	if err := s.requireUUID(authorID, errors.New("authorID is required")); err != nil {
-		return err
+	if err := s.requireUUID(authorID, ErrAuthorIDRequired); err != nil {
+		return &models.Comment{}, err
 	}
 	if err := s.requireUUID(postID, ErrPostIDRequired); err != nil {
-		return err
+		return &models.Comment{}, err
 	}
 	if err := s.requireUUID(commentID, ErrCommentIDRequired); err != nil {
-		return err
+		return &models.Comment{}, err
 	}
 
 	return s.commentRepo.AnswerComment(ctx, text, authorID, postID, commentID)

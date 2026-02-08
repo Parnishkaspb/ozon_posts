@@ -7,26 +7,53 @@ type AuthPayload struct {
 }
 
 type Comment struct {
-	ID        string  `json:"id"`
-	PostID    string  `json:"postId"`
-	ParentID  *string `json:"parentId,omitempty"`
-	Text      string  `json:"text"`
-	CreatedAt string  `json:"createdAt"`
-	AuthorID  string  `json:"authorId"`
-	Author    *User   `json:"author"`
+	ID        string             `json:"id"`
+	PostID    string             `json:"postId"`
+	ParentID  *string            `json:"parentId,omitempty"`
+	Text      string             `json:"text"`
+	CreatedAt string             `json:"createdAt"`
+	AuthorID  string             `json:"authorId"`
+	Author    *User              `json:"author"`
+	Replies   *CommentConnection `json:"replies"`
+}
+
+type CommentConnection struct {
+	Edges    []*CommentEdge `json:"edges"`
+	PageInfo *PageInfo      `json:"pageInfo"`
+}
+
+type CommentEdge struct {
+	Cursor string   `json:"cursor"`
+	Node   *Comment `json:"node"`
 }
 
 type Mutation struct {
 }
 
+type PageInfo struct {
+	EndCursor   *string `json:"endCursor,omitempty"`
+	HasNextPage bool    `json:"hasNextPage"`
+}
+
 type Post struct {
-	ID             string `json:"id"`
-	Text           string `json:"text"`
-	WithoutComment bool   `json:"withoutComment"`
-	CreatedAt      string `json:"createdAt"`
-	UpdatedAt      string `json:"updatedAt"`
-	AuthorID       string `json:"authorId"`
-	Author         *User  `json:"author"`
+	ID             string             `json:"id"`
+	Text           string             `json:"text"`
+	WithoutComment bool               `json:"withoutComment"`
+	CreatedAt      string             `json:"createdAt"`
+	UpdatedAt      string             `json:"updatedAt"`
+	AuthorID       string             `json:"authorId"`
+	Author         *User              `json:"author"`
+	Comments       *CommentConnection `json:"comments"`
+}
+
+type PostConnection struct {
+	Edges    []*PostEdge `json:"edges"`
+	PageInfo *PageInfo   `json:"pageInfo"`
+}
+
+type PostEdge struct {
+	Cursor string `json:"cursor"`
+	Node   *Post  `json:"node"`
 }
 
 type Query struct {

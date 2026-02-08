@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"time"
 )
 
 type Repo struct {
@@ -22,7 +23,7 @@ func (r *Repo) GetAllPosts(ctx context.Context) ([]*models.Post, error) {
 	const query = `
 		SELECT id, author_id, text, without_comment, created_at, updated_at
 		FROM posts
-		ORDER BY created_at ASC
+		ORDER BY created_at DESC
 	`
 
 	rows, err := r.pool.Query(ctx, query)
@@ -83,6 +84,55 @@ func (r *Repo) GetPostsByUserID(ctx context.Context, authorID uuid.UUID) ([]*mod
 	}
 
 	return posts, nil
+}
+
+func (r *Repo) GetPostsPage(ctx context.Context, first int, afterCreatedAt *time.Time, afterID *uuid.UUID) ([]*models.Post, bool, error) {
+	const query = `
+		SELECT id, author_id, text, without_comment, created_at, updated_at
+		FROM posts
+		WHERE
+		  ($1::timestamptz IS NULL AND $2::uuid IS NULL)
+		  OR (created_at, id) < ($1::timestamptz, $2::uuid)
+		ORDER BY created_at DESC, id DESC
+		LIMIT $3;
+	`
+
+	limit := first + 1
+
+	rows, err := r.pool.Query(ctx, query, afterCreatedAt, afterID, limit)
+	if err != nil {
+		return nil, false, err
+	}
+	defer rows.Close()
+
+	posts := make([]*models.Post, 0, limit)
+
+	for rows.Next() {
+		var p models.Post
+		if err := rows.Scan(
+			&p.ID,
+			&p.AuthorID,
+			&p.Text,
+			&p.WithoutComment,
+			&p.CreatedAt,
+			&p.UpdatedAt,
+		); err != nil {
+			return nil, false, err
+		}
+		posts = append(posts, &p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, false, err
+	}
+
+	hasNext := false
+	if len(posts) > first {
+		hasNext = true
+		posts = posts[:first]
+	}
+
+	return posts, hasNext, nil
 }
 
 func (r *Repo) collectRows(rows pgx.Rows) ([]*models.Post, error) {

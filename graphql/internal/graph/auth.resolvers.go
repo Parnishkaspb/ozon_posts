@@ -8,6 +8,7 @@ package graph
 import (
 	"context"
 
+	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 )
@@ -25,3 +26,8 @@ func (r *mutationResolver) Login(ctx context.Context, login string, password str
 
 	return &model.AuthPayload{Token: answer.Token}, nil
 }
+
+// Mutation returns generated.MutationResolver implementation.
+func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
+
+type mutationResolver struct{ *Resolver }

@@ -8,12 +8,12 @@ package graph
 import (
 	"context"
 	"fmt"
-	"github.com/Parnishkaspb/ozon_posts_graphql/internal/helper"
 	"time"
 
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/generated"
 	helpergraph "github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/helper"
 	"github.com/Parnishkaspb/ozon_posts_graphql/internal/graph/model"
+	"github.com/Parnishkaspb/ozon_posts_graphql/internal/helper"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
 )
 

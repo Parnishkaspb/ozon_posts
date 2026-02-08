@@ -12,6 +12,19 @@ type Comment {
   parentId: ID
   text: String!
   createdAt: String!
+
   authorId: ID!
   author: User!
+
+  replies(first: Int! = 20, after: String): CommentConnection!
+}
+
+type CommentConnection {
+  edges: [CommentEdge!]!
+  pageInfo: PageInfo!
+}
+
+type CommentEdge {
+  cursor: String!
+  node: Comment!
 }

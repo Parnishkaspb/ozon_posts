@@ -19,6 +19,8 @@ models:
     fields:
       author:
         resolver: true
+      comments:
+        resolver: true
   Comment:
     fields:
       author:

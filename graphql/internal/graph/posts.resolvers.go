@@ -59,58 +59,64 @@ func (r *postResolver) Author(ctx context.Context, obj *model.Post) (*model.User
 	return helpergraph.ResolveAuthor(ctx, obj.AuthorID)
 }
 
-// Posts is the resolver for the posts field.
-func (r *queryResolver) Posts(ctx context.Context) ([]*model.Post, error) {
-	resp, err := r.PostSvc.GetPosts(ctx, &servicepb.GetPostsRequest{})
-	if err != nil {
-		return nil, err
-	}
-
-	result := make([]*model.Post, 0, len(resp.GetPosts()))
-	for _, p := range resp.GetPosts() {
-		result = append(result, &model.Post{
-			ID:             p.GetId(),
-			Text:           p.GetText(),
-			WithoutComment: p.GetWithoutComment(),
-			CreatedAt:      p.GetCreatedAt().AsTime().Format(time.RFC3339),
-			UpdatedAt:      p.GetUpdatedAt().AsTime().Format(time.RFC3339),
-			AuthorID:       p.GetAuthorId(),
-		})
-	}
-	return result, nil
+// Comments is the resolver for the comments field.
+func (r *postResolver) Comments(ctx context.Context, obj *model.Post, first int, after *string) (*model.CommentConnection, error) {
+	panic(fmt.Errorf("not implemented: Comments - comments"))
 }
 
-// PostID is the resolver for the postID field.
-func (r *queryResolver) PostID(ctx context.Context, id string) (*model.Post, error) {
-	resp, err := r.PostSvc.GetPosts(ctx, &servicepb.GetPostsRequest{
-		Ids: []string{id},
-	})
+// Posts is the resolver for the posts field.
+func (r *queryResolver) Posts(ctx context.Context, first int, after *string) (*model.PostConnection, error) {
+	req := &servicepb.GetPostsRequest{
+		First: int32(first),
+	}
+	if after != nil {
+		req.After = *after
+	}
+
+	resp, err := r.PostSvc.GetPosts(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
 	posts := resp.GetPosts()
-	if len(posts) == 0 {
-		return nil, fmt.Errorf("post not found")
+
+	edges := make([]*model.PostEdge, 0, len(posts))
+	for _, p := range posts {
+		node := &model.Post{
+			ID:             p.GetId(),
+			Text:           p.GetText(),
+			WithoutComment: p.GetWithoutComment(),
+			CreatedAt:      p.GetCreatedAt().AsTime().UTC().Format(time.RFC3339),
+			UpdatedAt:      p.GetUpdatedAt().AsTime().UTC().Format(time.RFC3339),
+			AuthorID:       p.GetAuthorId(),
+		}
+
+		edges = append(edges, &model.PostEdge{
+			Cursor: helpergraph.MakePostCursor(p),
+			Node:   node,
+		})
 	}
 
-	p := posts[0]
+	var endCursor *string
+	if c := resp.GetEndCursor(); c != "" {
+		endCursor = &c
+	}
 
-	return &model.Post{
-		ID:             p.GetId(),
-		Text:           p.GetText(),
-		WithoutComment: p.GetWithoutComment(),
-		CreatedAt:      p.GetCreatedAt().AsTime().Format(time.RFC3339),
-		UpdatedAt:      p.GetUpdatedAt().AsTime().Format(time.RFC3339),
-		AuthorID:       p.GetAuthorId(),
+	return &model.PostConnection{
+		Edges: edges,
+		PageInfo: &model.PageInfo{
+			EndCursor:   endCursor,
+			HasNextPage: resp.GetHasNextPage(),
+		},
 	}, nil
 }
 
-// Mutation returns generated.MutationResolver implementation.
-func (r *Resolver) Mutation() generated.MutationResolver { return &mutationResolver{r} }
+// Post is the resolver for the post field.
+func (r *queryResolver) Post(ctx context.Context, id string) (*model.Post, error) {
+	panic(fmt.Errorf("not implemented: Post - post"))
+}
 
 // Post returns generated.PostResolver implementation.
 func (r *Resolver) Post() generated.PostResolver { return &postResolver{r} }
 
-type mutationResolver struct{ *Resolver }
 type postResolver struct{ *Resolver }

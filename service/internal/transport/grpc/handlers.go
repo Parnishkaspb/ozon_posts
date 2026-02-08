@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/Parnishkaspb/ozon_posts/internal/app"
 	"github.com/Parnishkaspb/ozon_posts/internal/auth"
+	"github.com/Parnishkaspb/ozon_posts/internal/models"
 	"github.com/Parnishkaspb/ozon_posts/internal/services/comments"
 	"github.com/Parnishkaspb/ozon_posts/internal/services/posts"
 	servicepb "github.com/Parnishkaspb/ozon_posts_proto/gen/service/v1"
@@ -85,24 +86,16 @@ func (h *Handler) CreatePost(
 }
 
 func (h *Handler) GetPosts(ctx context.Context, req *servicepb.GetPostsRequest) (*servicepb.GetPostsResponse, error) {
-	postsAnswer, err := h.app.PostSRV.GetAllPosts(ctx, req.Ids)
+	postsAnswer, endCursor, hasNext, err := h.app.PostSRV.GetPostsByPage(ctx, int(req.GetFirst()), req.GetAfter())
 	if err != nil {
 		return nil, status.Error(codes.Internal, "internal server error")
 	}
 
-	result := make([]*servicepb.Post, 0, len(postsAnswer))
-	for _, post := range postsAnswer {
-		result = append(result, &servicepb.Post{
-			Id:             post.ID.String(),
-			AuthorId:       post.AuthorID.String(),
-			Text:           post.Text,
-			WithoutComment: post.WithoutComment,
-			CreatedAt:      timestamppb.New(post.CreatedAt),
-			UpdatedAt:      timestamppb.New(post.UpdatedAt),
-		})
-	}
-
-	return &servicepb.GetPostsResponse{Posts: result}, nil
+	return &servicepb.GetPostsResponse{
+		Posts:       postsAnswer,
+		EndCursor:   endCursor,
+		HasNextPage: hasNext,
+	}, nil
 }
 
 func (h *Handler) GetUsers(ctx context.Context, req *servicepb.GetUsersRequest) (*servicepb.GetUsersResponse, error) {
@@ -138,7 +131,19 @@ func (h *Handler) CreateComment(ctx context.Context, req *servicepb.CreateCommen
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, "author_id must be a valid UUID")
 	}
-	comment, err := h.app.CommentSRV.CommentCreate(ctx, req.GetText(), uuidAuthorId, uuidPostId)
+
+	var comment *models.Comment
+	if req.GetParentId() != "" {
+		uuidParentId, err := uuid.Parse(req.GetParentId())
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, "parent_id must be a valid UUID")
+		}
+
+		comment, err = h.app.CommentSRV.CommentAnswer(ctx, req.GetText(), uuidAuthorId, uuidPostId, uuidParentId)
+	} else {
+		comment, err = h.app.CommentSRV.CommentCreate(ctx, req.GetText(), uuidAuthorId, uuidPostId)
+	}
+
 	if err != nil {
 		if errors.Is(err, comments.ErrCantWriteComment) {
 			return nil, status.Error(codes.InvalidArgument, comments.ErrCantWriteComment.Error())

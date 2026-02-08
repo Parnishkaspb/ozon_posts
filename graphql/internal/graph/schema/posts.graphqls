@@ -4,18 +4,36 @@ type Post {
   withoutComment: Boolean!
   createdAt: String!
   updatedAt: String!
+
   authorId: ID!
   author: User!
+
+  comments(first: Int! = 20, after: String): CommentConnection!
 }
 
-type Mutation {
-    createPost(
-        text: String!
-        withoutComment: Boolean = false
-    ): Post!
+extend type Mutation {
+  createPost(
+    text: String!
+    withoutComment: Boolean = false
+  ): Post!
 }
 
 extend type Query {
-  posts: [Post!]!
-  postID(id: ID!): Post
+  posts(first: Int! = 20, after: String): PostConnection!
+  post(id: ID!): Post
+}
+
+type PostConnection {
+  edges: [PostEdge!]!
+  pageInfo: PageInfo!
+}
+
+type PostEdge {
+  cursor: String!
+  node: Post!
+}
+
+type PageInfo {
+  endCursor: String
+  hasNextPage: Boolean!
 }

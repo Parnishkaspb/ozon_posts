@@ -263,6 +263,7 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 const (
 	PostService_CreatePost_FullMethodName = "/service.v1.PostService/CreatePost"
 	PostService_GetPosts_FullMethodName   = "/service.v1.PostService/GetPosts"
+	PostService_GetPost_FullMethodName    = "/service.v1.PostService/GetPost"
 )
 
 // PostServiceClient is the client API for PostService service.
@@ -271,6 +272,7 @@ const (
 type PostServiceClient interface {
 	CreatePost(ctx context.Context, in *CreatePostRequest, opts ...grpc.CallOption) (*CreatePostResponse, error)
 	GetPosts(ctx context.Context, in *GetPostsRequest, opts ...grpc.CallOption) (*GetPostsResponse, error)
+	GetPost(ctx context.Context, in *GetPostRequest, opts ...grpc.CallOption) (*GetPostResponse, error)
 }
 
 type postServiceClient struct {
@@ -301,12 +303,23 @@ func (c *postServiceClient) GetPosts(ctx context.Context, in *GetPostsRequest, o
 	return out, nil
 }
 
+func (c *postServiceClient) GetPost(ctx context.Context, in *GetPostRequest, opts ...grpc.CallOption) (*GetPostResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetPostResponse)
+	err := c.cc.Invoke(ctx, PostService_GetPost_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // PostServiceServer is the server API for PostService service.
 // All implementations must embed UnimplementedPostServiceServer
 // for forward compatibility.
 type PostServiceServer interface {
 	CreatePost(context.Context, *CreatePostRequest) (*CreatePostResponse, error)
 	GetPosts(context.Context, *GetPostsRequest) (*GetPostsResponse, error)
+	GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error)
 	mustEmbedUnimplementedPostServiceServer()
 }
 
@@ -322,6 +335,9 @@ func (UnimplementedPostServiceServer) CreatePost(context.Context, *CreatePostReq
 }
 func (UnimplementedPostServiceServer) GetPosts(context.Context, *GetPostsRequest) (*GetPostsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPosts not implemented")
+}
+func (UnimplementedPostServiceServer) GetPost(context.Context, *GetPostRequest) (*GetPostResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetPost not implemented")
 }
 func (UnimplementedPostServiceServer) mustEmbedUnimplementedPostServiceServer() {}
 func (UnimplementedPostServiceServer) testEmbeddedByValue()                     {}
@@ -380,6 +396,24 @@ func _PostService_GetPosts_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _PostService_GetPost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetPostRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PostServiceServer).GetPost(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PostService_GetPost_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PostServiceServer).GetPost(ctx, req.(*GetPostRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // PostService_ServiceDesc is the grpc.ServiceDesc for PostService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -395,15 +429,19 @@ var PostService_ServiceDesc = grpc.ServiceDesc{
 			MethodName: "GetPosts",
 			Handler:    _PostService_GetPosts_Handler,
 		},
+		{
+			MethodName: "GetPost",
+			Handler:    _PostService_GetPost_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "service/v1/service.proto",
 }
 
 const (
-	CommentService_CreateComment_FullMethodName     = "/service.v1.CommentService/CreateComment"
-	CommentService_GetCommentsByPost_FullMethodName = "/service.v1.CommentService/GetCommentsByPost"
-	CommentService_GetComments_FullMethodName       = "/service.v1.CommentService/GetComments"
+	CommentService_CreateComment_FullMethodName    = "/service.v1.CommentService/CreateComment"
+	CommentService_GetComments_FullMethodName      = "/service.v1.CommentService/GetComments"
+	CommentService_GetCommentsByIDs_FullMethodName = "/service.v1.CommentService/GetCommentsByIDs"
 )
 
 // CommentServiceClient is the client API for CommentService service.
@@ -411,8 +449,8 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CommentServiceClient interface {
 	CreateComment(ctx context.Context, in *CreateCommentRequest, opts ...grpc.CallOption) (*CreateCommentResponse, error)
-	GetCommentsByPost(ctx context.Context, in *GetCommentsByPostRequest, opts ...grpc.CallOption) (*GetCommentsResponse, error)
 	GetComments(ctx context.Context, in *GetCommentsRequest, opts ...grpc.CallOption) (*GetCommentsResponse, error)
+	GetCommentsByIDs(ctx context.Context, in *GetCommentsByIDsRequest, opts ...grpc.CallOption) (*GetCommentsByIDsResponse, error)
 }
 
 type commentServiceClient struct {
@@ -433,20 +471,20 @@ func (c *commentServiceClient) CreateComment(ctx context.Context, in *CreateComm
 	return out, nil
 }
 
-func (c *commentServiceClient) GetCommentsByPost(ctx context.Context, in *GetCommentsByPostRequest, opts ...grpc.CallOption) (*GetCommentsResponse, error) {
+func (c *commentServiceClient) GetComments(ctx context.Context, in *GetCommentsRequest, opts ...grpc.CallOption) (*GetCommentsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetCommentsResponse)
-	err := c.cc.Invoke(ctx, CommentService_GetCommentsByPost_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, CommentService_GetComments_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *commentServiceClient) GetComments(ctx context.Context, in *GetCommentsRequest, opts ...grpc.CallOption) (*GetCommentsResponse, error) {
+func (c *commentServiceClient) GetCommentsByIDs(ctx context.Context, in *GetCommentsByIDsRequest, opts ...grpc.CallOption) (*GetCommentsByIDsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(GetCommentsResponse)
-	err := c.cc.Invoke(ctx, CommentService_GetComments_FullMethodName, in, out, cOpts...)
+	out := new(GetCommentsByIDsResponse)
+	err := c.cc.Invoke(ctx, CommentService_GetCommentsByIDs_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -458,8 +496,8 @@ func (c *commentServiceClient) GetComments(ctx context.Context, in *GetCommentsR
 // for forward compatibility.
 type CommentServiceServer interface {
 	CreateComment(context.Context, *CreateCommentRequest) (*CreateCommentResponse, error)
-	GetCommentsByPost(context.Context, *GetCommentsByPostRequest) (*GetCommentsResponse, error)
 	GetComments(context.Context, *GetCommentsRequest) (*GetCommentsResponse, error)
+	GetCommentsByIDs(context.Context, *GetCommentsByIDsRequest) (*GetCommentsByIDsResponse, error)
 	mustEmbedUnimplementedCommentServiceServer()
 }
 
@@ -473,11 +511,11 @@ type UnimplementedCommentServiceServer struct{}
 func (UnimplementedCommentServiceServer) CreateComment(context.Context, *CreateCommentRequest) (*CreateCommentResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateComment not implemented")
 }
-func (UnimplementedCommentServiceServer) GetCommentsByPost(context.Context, *GetCommentsByPostRequest) (*GetCommentsResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetCommentsByPost not implemented")
-}
 func (UnimplementedCommentServiceServer) GetComments(context.Context, *GetCommentsRequest) (*GetCommentsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetComments not implemented")
+}
+func (UnimplementedCommentServiceServer) GetCommentsByIDs(context.Context, *GetCommentsByIDsRequest) (*GetCommentsByIDsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetCommentsByIDs not implemented")
 }
 func (UnimplementedCommentServiceServer) mustEmbedUnimplementedCommentServiceServer() {}
 func (UnimplementedCommentServiceServer) testEmbeddedByValue()                        {}
@@ -518,24 +556,6 @@ func _CommentService_CreateComment_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CommentService_GetCommentsByPost_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetCommentsByPostRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(CommentServiceServer).GetCommentsByPost(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: CommentService_GetCommentsByPost_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CommentServiceServer).GetCommentsByPost(ctx, req.(*GetCommentsByPostRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _CommentService_GetComments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetCommentsRequest)
 	if err := dec(in); err != nil {
@@ -554,6 +574,24 @@ func _CommentService_GetComments_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CommentService_GetCommentsByIDs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCommentsByIDsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CommentServiceServer).GetCommentsByIDs(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CommentService_GetCommentsByIDs_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CommentServiceServer).GetCommentsByIDs(ctx, req.(*GetCommentsByIDsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CommentService_ServiceDesc is the grpc.ServiceDesc for CommentService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -566,12 +604,12 @@ var CommentService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CommentService_CreateComment_Handler,
 		},
 		{
-			MethodName: "GetCommentsByPost",
-			Handler:    _CommentService_GetCommentsByPost_Handler,
-		},
-		{
 			MethodName: "GetComments",
 			Handler:    _CommentService_GetComments_Handler,
+		},
+		{
+			MethodName: "GetCommentsByIDs",
+			Handler:    _CommentService_GetCommentsByIDs_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
